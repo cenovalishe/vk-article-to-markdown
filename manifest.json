@@ -1,0 +1,44 @@
+{
+  "manifest_version": 3,
+  "name": "VK Article to Markdown",
+  "description": "Экспортирует статьи ВКонтакте в .md файл с сохранением форматирования",
+  "version": "1.1.0",
+  "icons": {
+    "16":  "icons/icon-16.png",
+    "32":  "icons/icon-32.png",
+    "48":  "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "VK → Markdown",
+    "default_icon": {
+      "16":  "icons/icon-16.png",
+      "32":  "icons/icon-32.png",
+      "48":  "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
+  },
+  "permissions": [
+    "tabs",
+    "scripting",
+    "downloads"
+  ],
+  "host_permissions": [
+    "https://vk.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://vk.com/@*",
+        "https://vk.com/*?*z=article*",
+        "https://vk.com/*?*z=article_edit*"
+      ],
+      "js": ["content/content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "background": {
+    "service_worker": "background/service-worker.js"
+  }
+}

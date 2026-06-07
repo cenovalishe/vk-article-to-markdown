@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VK → Markdown</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div class="container" id="app">
+    <!-- Header -->
+    <header class="header">
+      <div class="logo">
+        <svg class="logo__icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path d="M2 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10S2 17.523 2 12z" fill="#0077FF"/>
+          <path d="M12.5 7.5C12.5 7.224 12.724 7 13 7h.5a.5.5 0 0 1 .354.146l3.5 3.5a.5.5 0 0 1 0 .708l-3.5 3.5A.5.5 0 0 1 13.5 15H13a.5.5 0 0 1-.5-.5v-2H8a.5.5 0 0 1-.5-.5v-1A.5.5 0 0 1 8 10.5h4.5V7.5z" fill="white"/>
+        </svg>
+        <div class="logo__text">
+          <span class="logo__title">VK → MD</span>
+          <span class="logo__subtitle">Article Exporter</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Status area -->
+    <div class="status-card" id="statusCard">
+      <div class="status-indicator" id="statusIndicator">
+        <div class="spinner" id="spinner" aria-hidden="true"></div>
+        <svg class="status-icon status-icon--check hidden" id="iconCheck" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <svg class="status-icon status-icon--error hidden" id="iconError" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <svg class="status-icon status-icon--info hidden" id="iconInfo" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+          <path d="M12 16v-4m0-4h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="status-text">
+        <p class="status-message" id="statusMessage">Определяю страницу…</p>
+        <p class="status-detail" id="statusDetail"></p>
+      </div>
+    </div>
+
+    <!-- Article info preview -->
+    <div class="article-info hidden" id="articleInfo">
+      <div class="article-info__label">Статья</div>
+      <div class="article-info__title" id="articleTitle"></div>
+      <div class="article-info__meta" id="articleMeta"></div>
+    </div>
+
+    <!-- Preview section -->
+    <div class="preview-section hidden" id="previewSection">
+      <div class="preview-header">
+        <span class="preview-label">Предпросмотр Markdown</span>
+        <button class="btn btn--ghost btn--sm" id="btnCopy" aria-label="Скопировать Markdown">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <rect x="9" y="9" width="13" height="13" rx="2" stroke="currentColor" stroke-width="2"/>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="2"/>
+          </svg>
+          <span id="btnCopyLabel">Копировать</span>
+        </button>
+      </div>
+      <pre class="preview-content" id="previewContent" aria-label="Markdown предпросмотр"></pre>
+    </div>
+
+    <!-- Action buttons -->
+    <div class="actions" id="actions">
+      <button class="btn btn--primary btn--full" id="btnExport" disabled aria-label="Экспортировать статью в Markdown">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <polyline points="7 10 12 15 17 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <line x1="12" y1="15" x2="12" y2="3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        Скачать .md файл
+      </button>
+      <button class="btn btn--secondary hidden" id="btnRetry" aria-label="Повторить попытку">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M1 4v6h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M3.51 15a9 9 0 1 0 .49-3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Повторить
+      </button>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <span>Работает на страницах статей</span>
+      <span class="footer__url">vk.com</span>
+    </footer>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

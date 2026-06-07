@@ -1,0 +1,327 @@
+/**
+ * VK Article to Markdown — Content Script
+ * Converts VK article DOM to clean Markdown text.
+ */
+
+(function () {
+  'use strict';
+
+  // ─── Skip rules: UI chrome, placeholders, editor controls ────────────────
+
+  /** CSS class fragments that mark non-content nodes */
+  const SKIP_CLASS = [
+    'article_ed_hover',
+    'article_ed_paragraph_tools',
+    'article_ed_guide',
+    'article_ed__extra_controls',
+    'article_ed__obj_edit',
+    'article_ed__warn',
+    'article_ed__select',
+    'article_ed__caredit',
+    'article_anchor_button',
+    'article_anchor_tooltip',
+    'article_ed__noconteditable',
+    'article_ed_layer__list',      // article list sidebar
+    'article_ed_layer__publish',   // publish settings panel
+  ];
+
+  /** Placeholder text strings VK injects into empty editor blocks */
+  const PLACEHOLDER_ATTRS = [
+    'data-placeholder',
+    'data-text',
+  ];
+
+  function shouldSkip(el) {
+    // Check CSS classes
+    const cls = typeof el.className === 'string'
+      ? el.className
+      : (el.className?.baseVal || '');
+
+    for (const p of SKIP_CLASS) {
+      if (cls.includes(p)) return true;
+    }
+
+    // Skip aria-hidden UI decorations
+    if (el.getAttribute('aria-hidden') === 'true') return true;
+    if (el.hasAttribute('hidden')) return true;
+
+    // Skip editor placeholder spans/divs (empty blocks with placeholder text)
+    // These have data-placeholder attribute and are empty content-wise
+    for (const attr of PLACEHOLDER_ATTRS) {
+      if (el.hasAttribute(attr) && el.textContent.trim() === '') return true;
+    }
+
+    return false;
+  }
+
+  /** Check if text is a VK editor placeholder (e.g. "Добавьте описание") */
+  function isPlaceholderText(text) {
+    const t = text.trim();
+    const PLACEHOLDERS = [
+      'Добавьте описание',
+      'Добавьте заголовок',
+      'Введите текст',
+      'Add a caption',
+      'Add a heading',
+    ];
+    return PLACEHOLDERS.includes(t);
+  }
+
+  // ─── Node → Markdown ──────────────────────────────────────────────────────
+
+  function nodeToMd(node) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      return node.textContent;
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) return '';
+
+    if (shouldSkip(node)) return '';
+
+    const tag = node.tagName.toLowerCase();
+    const kids = () => Array.from(node.childNodes).map(nodeToMd).join('');
+
+    switch (tag) {
+      // ── Headings ──
+      case 'h1': {
+        const t = kids().trim();
+        return t ? `# ${t}\n\n` : '';
+      }
+      case 'h2': {
+        const t = kids().trim();
+        return t ? `## ${t}\n\n` : '';
+      }
+      case 'h3': {
+        const t = kids().trim();
+        return t ? `### ${t}\n\n` : '';
+      }
+      case 'h4': return kids().trim() ? `#### ${kids().trim()}\n\n` : '';
+      case 'h5': return kids().trim() ? `##### ${kids().trim()}\n\n` : '';
+      case 'h6': return kids().trim() ? `###### ${kids().trim()}\n\n` : '';
+
+      // ── Paragraphs ──
+      case 'p': {
+        const t = kids().trim();
+        return t ? `${t}\n\n` : '';
+      }
+
+      case 'br': return '\n';
+
+      // ── Inline formatting ──
+      case 'strong':
+      case 'b': {
+        const t = kids();
+        const trimmed = t.trim();
+        if (!trimmed) return t; // preserve spaces around empty bold
+        // Preserve leading/trailing spaces outside the markers
+        const lead  = t.match(/^\s*/)[0];
+        const trail = t.match(/\s*$/)[0];
+        return `${lead}**${trimmed}**${trail}`;
+      }
+
+      case 'em':
+      case 'i': {
+        const t = kids();
+        const trimmed = t.trim();
+        if (!trimmed) return t;
+        const lead  = t.match(/^\s*/)[0];
+        const trail = t.match(/\s*$/)[0];
+        return `${lead}*${trimmed}*${trail}`;
+      }
+
+      case 's':
+      case 'del':
+      case 'strike': {
+        const trimmed = kids().trim();
+        return trimmed ? `~~${trimmed}~~` : '';
+      }
+
+      case 'u': {
+        const trimmed = kids().trim();
+        return trimmed ? `<u>${trimmed}</u>` : '';
+      }
+
+      case 'code': return `\`${node.textContent}\``;
+
+      case 'pre': {
+        const codeEl = node.querySelector('code');
+        const content = (codeEl ?? node).textContent.trim();
+        const lang = codeEl?.className?.match(/language-(\w+)/)?.[1] ?? '';
+        return `\`\`\`${lang}\n${content}\n\`\`\`\n\n`;
+      }
+
+      // ── Blockquote ──
+      case 'blockquote': {
+        const inner = kids().trim();
+        if (!inner) return '';
+        return inner.split('\n').map(l => `> ${l}`).join('\n') + '\n\n';
+      }
+
+      // ── Links ──
+      case 'a': {
+        const href = node.getAttribute('href') || '';
+        const text = kids().trim();
+        if (!text) return '';
+        // Internal anchor → skip as link, keep text
+        if (!href || href === '#') return text;
+        const url = href.startsWith('http') ? href : `https://vk.com${href}`;
+        return `[${text}](${url})`;
+      }
+
+      // ── Images — skipped (text-only export) ──
+      case 'img': {
+        // Preserve emoji alt text
+        if (node.classList.contains('emoji')) return node.getAttribute('alt') || '';
+        return '';
+      }
+
+      // ── Figure / captioned image — skipped (text-only export) ──
+      case 'figure': return '';
+
+      // ── Lists ──
+      case 'ul': {
+        const items = Array.from(node.children)
+          .filter(c => c.tagName.toLowerCase() === 'li')
+          .map(li => `- ${nodeToMd(li).trim()}`)
+          .join('\n');
+        return items ? `${items}\n\n` : '';
+      }
+      case 'ol': {
+        const items = Array.from(node.children)
+          .filter(c => c.tagName.toLowerCase() === 'li')
+          .map((li, i) => `${i + 1}. ${nodeToMd(li).trim()}`)
+          .join('\n');
+        return items ? `${items}\n\n` : '';
+      }
+      case 'li': return kids();
+
+      case 'hr': return '---\n\n';
+
+      case 'table': return convertTable(node);
+
+      // ── Skip purely structural UI ──
+      case 'script':
+      case 'style':
+      case 'noscript':
+      case 'svg':
+      case 'button':
+      case 'nav':
+        return '';
+
+      default:
+        return kids();
+    }
+  }
+
+  function convertTable(table) {
+    const rows = Array.from(table.querySelectorAll('tr'));
+    if (!rows.length) return '';
+    const toRow = cells =>
+      '| ' + cells.map(c => c.textContent.trim().replace(/\|/g, '\\|')).join(' | ') + ' |';
+    const heads = Array.from(rows[0].querySelectorAll('th, td'));
+    const sep   = '| ' + heads.map(() => '---').join(' | ') + ' |';
+    return [
+      toRow(heads),
+      sep,
+      ...rows.slice(1).map(r => toRow(Array.from(r.querySelectorAll('td, th')))),
+    ].join('\n') + '\n\n';
+  }
+
+  // ─── Find the article body ─────────────────────────────────────────────────
+
+  function findArticleContainer() {
+    // Editor mode: the contenteditable canvas
+    const canvas = document.querySelector('.article_editor_canvas');
+    if (canvas?.textContent.trim().length > 5) return canvas;
+
+    // Published / viewer mode: .article_body
+    const body = document.querySelector('.article_body');
+    if (body?.textContent.trim().length > 5) return body;
+
+    // Viewer overlay layer content
+    const layerContent = document.querySelector('.article_ed_layer__content');
+    if (layerContent?.textContent.trim().length > 5) return layerContent;
+
+    // Fallbacks
+    for (const sel of ['.article_view', '[class*="article_body"]', '[contenteditable="true"]']) {
+      const el = document.querySelector(sel);
+      if (el?.textContent.trim().length > 5) return el;
+    }
+    return null;
+  }
+
+  // ─── Extract title (deduplicated) ─────────────────────────────────────────
+
+  function extractTitle(container) {
+    const h1 = container?.querySelector('h1');
+    if (h1) return h1.textContent.trim();
+    const pageH1 = document.querySelector('h1');
+    if (pageH1) return pageH1.textContent.trim();
+    return document.title
+      .replace(/ [|–—-] ВКонтакте$/, '')
+      .replace(/ [|–—-] VK$/, '')
+      .trim();
+  }
+
+  // ─── Build clean Markdown ─────────────────────────────────────────────────
+
+  function buildMarkdown(container, title) {
+    let md = nodeToMd(container);
+
+    // Remove duplicate title if the H1 appears at the very start
+    const titleMd = `# ${title}\n\n`;
+    if (md.startsWith(titleMd)) {
+      md = md.slice(titleMd.length);
+    }
+    // Also deduplicate if it appears twice
+    md = md.replace(new RegExp(`^(${escapeRe(titleMd)})+`), titleMd);
+
+    // Final assembly: just title + body, no front-matter
+    let result = title ? `# ${title}\n\n` : '';
+    result += md;
+
+    // Cleanup
+    result = result
+      .replace(/\n{4,}/g, '\n\n\n')  // max 3 blank lines
+      .replace(/[ \t]+\n/g, '\n')    // trailing whitespace
+      .replace(/\n{3,}$/g, '\n')     // trailing blank lines
+      .trimStart();
+
+    return result + '\n';
+  }
+
+  function escapeRe(str) {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  // ─── Main ─────────────────────────────────────────────────────────────────
+
+  function extractArticle() {
+    const container = findArticleContainer();
+
+    if (!container) {
+      return {
+        success: false,
+        error: 'Не найден контейнер статьи. Убедитесь, что страница полностью загружена.',
+      };
+    }
+
+    try {
+      const title    = extractTitle(container);
+      const markdown = buildMarkdown(container, title);
+      return { success: true, markdown, title };
+    } catch (err) {
+      return { success: false, error: `Ошибка: ${err.message}` };
+    }
+  }
+
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.action === 'extract') {
+      sendResponse(extractArticle());
+    } else if (message.action === 'ping') {
+      sendResponse({ ready: true });
+    }
+    return true;
+  });
+
+  window._vkMdExporterReady = true;
+})();
