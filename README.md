@@ -39,6 +39,9 @@ Chrome-расширение для экспорта статей ВКонтак�
 git clone https://github.com/cenovalishe/vk-article-to-markdown.git
 ```
 
+**или скачайте архив напрямую:**  
+[⬇ Скачать ZIP](https://github.com/cenovalishe/vk-article-to-markdown/archive/refs/heads/master.zip)
+
 **Вариант Б — архивом:**  
 Нажмите **Code → Download ZIP**, распакуйте.
 
