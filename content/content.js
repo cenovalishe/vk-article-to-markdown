@@ -293,6 +293,42 @@
     return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 
+  // ─── Count plain-text characters (no MD markup) ───────────────────────────────────
+
+  function countPlainChars(md) {
+    const plain = md
+      // Code blocks first (preserve content, strip fences)
+      .replace(/```[\s\S]*?```/g, m => m.replace(/```\w*\n?/g, ''))
+      // Inline code — strip backticks
+      .replace(/`([^`]+)`/g, '$1')
+      // Images: ![alt](url) → nothing
+      .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
+      // Links: [text](url) → text
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+      // Bold/italic: ***text***, **text**, *text*, ___text___, __text__, _text_
+      .replace(/(\*{1,3}|_{1,3})(.+?)\1/g, '$2')
+      // Strikethrough: ~~text~~
+      .replace(/~~(.+?)~~/g, '$1')
+      // HTML tags like <u>...</u>
+      .replace(/<[^>]+>/g, '')
+      // Heading markers: # ## ###
+      .replace(/^#{1,6}\s+/gm, '')
+      // Blockquote markers
+      .replace(/^>\s*/gm, '')
+      // Unordered list markers
+      .replace(/^[-*+]\s+/gm, '')
+      // Ordered list markers
+      .replace(/^\d+\.\s+/gm, '')
+      // Horizontal rules
+      .replace(/^-{3,}$/gm, '')
+      // Collapse all whitespace (spaces, tabs, newlines) into nothing
+      // We count only non-whitespace + spaces between words
+      .replace(/[ \t\r\n]+/g, ' ')
+      .trim();
+
+    return plain.length;
+  }
+
   // ─── Main ─────────────────────────────────────────────────────────────────
 
   function extractArticle() {
@@ -306,9 +342,10 @@
     }
 
     try {
-      const title    = extractTitle(container);
-      const markdown = buildMarkdown(container, title);
-      return { success: true, markdown, title };
+      const title     = extractTitle(container);
+      const markdown  = buildMarkdown(container, title);
+      const charCount = countPlainChars(markdown);
+      return { success: true, markdown, title, charCount };
     } catch (err) {
       return { success: false, error: `Ошибка: ${err.message}` };
     }

@@ -18,6 +18,8 @@ const app = {
   articleInfo:    $('articleInfo'),
   articleTitle:   $('articleTitle'),
   articleMeta:    $('articleMeta'),
+  charStat:       $('charStat'),
+  charCount:      $('charCount'),
   previewSection: $('previewSection'),
   previewContent: $('previewContent'),
   btnExport:      $('btnExport'),
@@ -56,9 +58,17 @@ function setStatus(icon, message, detail = '', cardClass = '') {
   if (cardClass) app.statusCard.classList.add(cardClass);
 }
 
-function showArticleInfo(title, meta) {
+function showArticleInfo(title, charCount) {
   app.articleTitle.textContent = title || 'Без названия';
-  app.articleMeta.textContent  = meta;
+  app.articleMeta.textContent  = '';
+
+  if (charCount != null) {
+    app.charCount.textContent = formatCount(charCount);
+    app.charStat.classList.remove('hidden');
+  } else {
+    app.charStat.classList.add('hidden');
+  }
+
   app.articleInfo.classList.remove('hidden');
 }
 
@@ -146,7 +156,7 @@ async function init() {
     currentTitle    = result.title || 'article';
 
     setStatus('check', 'Готово к экспорту!', '', 'is-success');
-    showArticleInfo(result.title, `Размер: ${formatSize(result.markdown.length)}`);
+    showArticleInfo(result.title, result.charCount);
     showPreview(result.markdown);
     setExportEnabled(true);
 
@@ -206,6 +216,11 @@ function sleep(ms) {
 function formatSize(bytes) {
   if (bytes < 1024) return `${bytes} Б`;
   return `${(bytes / 1024).toFixed(1)} КБ`;
+}
+
+/** Format character count with thousands separator */
+function formatCount(n) {
+  return n.toLocaleString('ru-RU');
 }
 
 /* ---- Event handlers ---- */
