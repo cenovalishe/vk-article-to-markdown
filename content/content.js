@@ -21,10 +21,17 @@
     'article_anchor_button',
     'article_anchor_tooltip',
     'article_ed__noconteditable',
-    'article_ed_layer__list',        // article list sidebar
-    'article_ed_layer__publish',     // publish settings panel
-    'article_ed__figcaption_edit',   // editor pencil/edit overlay on captions
-    'article_ed__caption_placeholder', // "Добавьте описание" placeholder
+    'article_ed_layer__list',           // article list sidebar
+    'article_ed_layer__publish',        // publish settings panel
+    'article_ed__figcaption_edit',      // editor pencil/edit overlay on captions
+    'article_ed__caption_placeholder',  // "Добавьте описание" placeholder
+    // Published article page chrome
+    'article_layer__header',            // author name + publication date block
+    'article_layer__simple_footer',     // "Н просмотров" footer
+    'article_layer__tts_player',        // text-to-speech player
+    'article_layer__top_actions',       // top action buttons (share, etc.)
+    'article_layer__up',                // "назад" button
+    'article_layer_misc',               // misc UI elements
   ];
 
   /** Placeholder text strings VK injects into empty editor blocks */
@@ -262,20 +269,31 @@
   // ─── Find the article body ─────────────────────────────────────────────────
 
   function findArticleContainer() {
-    // Editor mode: the contenteditable canvas
+    // ── Editor mode ────────────────────────────────────────────────
+    // .article_editor_canvas is the actual rich-text editing surface
     const canvas = document.querySelector('.article_editor_canvas');
     if (canvas?.textContent.trim().length > 5) return canvas;
 
-    // Published / viewer mode: .article_body
-    const body = document.querySelector('.article_body');
-    if (body?.textContent.trim().length > 5) return body;
+    // ── Published article (@slug URL) ─────────────────────────────────
+    // Selector hierarchy on published pages:
+    //   .article_layer > .article_layer__content > .article_theme > .article_view
+    // .article_view is the precise content wrapper — no author header, no footer
+    const articleView = document.querySelector('.article_view');
+    if (articleView?.textContent.trim().length > 5) return articleView;
 
-    // Viewer overlay layer content
+    const articleTheme = document.querySelector('.article_theme');
+    if (articleTheme?.textContent.trim().length > 5) return articleTheme;
+
+    // ── Viewer overlay (?z=article...) ────────────────────────────────
     const layerContent = document.querySelector('.article_ed_layer__content');
     if (layerContent?.textContent.trim().length > 5) return layerContent;
 
-    // Fallbacks
-    for (const sel of ['.article_view', '[class*="article_body"]', '[contenteditable="true"]']) {
+    // ── Fallbacks ─────────────────────────────────────────────────────────────
+    for (const sel of [
+      '.article_view',
+      '[class*="article_layer"]',
+      '[contenteditable="true"]',
+    ]) {
       const el = document.querySelector(sel);
       if (el?.textContent.trim().length > 5) return el;
     }
