@@ -183,38 +183,32 @@
         return '';
       }
 
-      // ── Figure: skip image, look for caption as inside OR sibling element ──
+      // ── Figure: skip image, return only the caption text ──
       case 'figure': {
-        // Caption may be inside figure (semantic) or in a sibling div (VK editor)
-        const inside =
+        // Look for figcaption INSIDE the figure only.
+        // Sibling figcaptions (VK editor standalone divs) are handled
+        // by case 'div' below to avoid double-rendering.
+        const cap =
           node.querySelector('figcaption') ||
           node.querySelector('.article_ed__figcaption');
-
-        const sibling =
-          node.nextElementSibling?.classList.contains('article_ed__figcaption')
-            ? node.nextElementSibling
-            : null;
-
-        const captionEl = inside || sibling;
-        if (!captionEl) return '';
-
-        return extractFigcaptionText(captionEl);
+        if (!cap) return '';
+        return extractFigcaptionText(cap);
       }
 
-      // ── .article_ed__figcaption div (standalone, sibling to figure) ──
-      // Handles cases where VK renders caption outside the <figure> tag.
+      // ── div elements ──
       case 'div': {
         const cls = typeof node.className === 'string' ? node.className : '';
-        if (cls.includes('article_ed__figcaption')) {
-          // Already handled via the figure case above (sibling lookup);
-          // but if encountered standalone, render it too.
-          const prevSibling = node.previousElementSibling;
-          const prevIsFigure = prevSibling?.tagName.toLowerCase() === 'figure';
-          if (prevIsFigure) return extractFigcaptionText(node);
-          // Otherwise fall through to default div handling
+
+        // article_ed__figcaption — VK editor caption block (sibling or nested).
+        // Render unconditionally; placeholder children are already in SKIP_CLASS.
+        // Note: article_ed__figcaption_edit (edit button) is in SKIP_CLASS
+        //       so it won't match here even though it starts with the same prefix.
+        if (cls.includes('article_ed__figcaption') &&
+            !cls.includes('article_ed__figcaption_edit')) {
+          return extractFigcaptionText(node);
         }
-        const inner = kids();
-        return inner;
+
+        return kids();
       }
 
       // ── Lists ──
