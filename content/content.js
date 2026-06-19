@@ -21,8 +21,9 @@
     'article_anchor_button',
     'article_anchor_tooltip',
     'article_ed__noconteditable',
-    'article_ed_layer__list',      // article list sidebar
-    'article_ed_layer__publish',   // publish settings panel
+    'article_ed_layer__list',       // article list sidebar
+    'article_ed_layer__publish',    // publish settings panel
+    'article_ed__figcaption_edit',  // editor pencil/edit overlay on captions
   ];
 
   /** Placeholder text strings VK injects into empty editor blocks */
@@ -174,8 +175,22 @@
         return '';
       }
 
-      // ── Figure / captioned image — skipped (text-only export) ──
-      case 'figure': return '';
+      // ── Figure: skip image, keep caption text ──
+      case 'figure': {
+        // VK uses <figcaption> or .article_ed__figcaption for caption text
+        const caption =
+          node.querySelector('figcaption') ||
+          node.querySelector('.article_ed__figcaption');
+
+        if (!caption) return '';
+
+        const text = caption.textContent.trim();
+        if (!text || isPlaceholderText(text)) return '';
+
+        // Render caption as its own paragraph (children may contain bold/italic)
+        const inner = Array.from(caption.childNodes).map(nodeToMd).join('').trim();
+        return inner ? `${inner}\n\n` : '';
+      }
 
       // ── Lists ──
       case 'ul': {
