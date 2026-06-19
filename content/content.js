@@ -21,9 +21,10 @@
     'article_anchor_button',
     'article_anchor_tooltip',
     'article_ed__noconteditable',
-    'article_ed_layer__list',       // article list sidebar
-    'article_ed_layer__publish',    // publish settings panel
-    'article_ed__figcaption_edit',  // editor pencil/edit overlay on captions
+    'article_ed_layer__list',        // article list sidebar
+    'article_ed_layer__publish',     // publish settings panel
+    'article_ed__figcaption_edit',   // editor pencil/edit overlay on captions
+    'article_ed__caption_placeholder', // "Добавьте описание" placeholder
   ];
 
   /** Placeholder text strings VK injects into empty editor blocks */
@@ -175,21 +176,38 @@
         return '';
       }
 
-      // ── Figure: skip image, keep caption text ──
+      // ── Figure: skip image, look for caption as inside OR sibling element ──
       case 'figure': {
-        // VK uses <figcaption> or .article_ed__figcaption for caption text
-        const caption =
+        // Caption may be inside figure (semantic) or in a sibling div (VK editor)
+        const inside =
           node.querySelector('figcaption') ||
           node.querySelector('.article_ed__figcaption');
 
-        if (!caption) return '';
+        const sibling =
+          node.nextElementSibling?.classList.contains('article_ed__figcaption')
+            ? node.nextElementSibling
+            : null;
 
-        const text = caption.textContent.trim();
-        if (!text || isPlaceholderText(text)) return '';
+        const captionEl = inside || sibling;
+        if (!captionEl) return '';
 
-        // Render caption as its own paragraph (children may contain bold/italic)
-        const inner = Array.from(caption.childNodes).map(nodeToMd).join('').trim();
-        return inner ? `${inner}\n\n` : '';
+        return extractFigcaptionText(captionEl);
+      }
+
+      // ── .article_ed__figcaption div (standalone, sibling to figure) ──
+      // Handles cases where VK renders caption outside the <figure> tag.
+      case 'div': {
+        const cls = typeof node.className === 'string' ? node.className : '';
+        if (cls.includes('article_ed__figcaption')) {
+          // Already handled via the figure case above (sibling lookup);
+          // but if encountered standalone, render it too.
+          const prevSibling = node.previousElementSibling;
+          const prevIsFigure = prevSibling?.tagName.toLowerCase() === 'figure';
+          if (prevIsFigure) return extractFigcaptionText(node);
+          // Otherwise fall through to default div handling
+        }
+        const inner = kids();
+        return inner;
       }
 
       // ── Lists ──
@@ -302,6 +320,23 @@
       .trimStart();
 
     return result + '\n';
+  }
+
+  /**
+   * Extract text from a figcaption element.
+   * Skips placeholder children (article_ed__caption_placeholder, figcaption_edit).
+   * Returns only the contenteditable / real text child content.
+   */
+  function extractFigcaptionText(captionEl) {
+    // shouldSkip already handles article_ed__caption_placeholder and figcaption_edit.
+    // We just render all children through nodeToMd — skippable ones return ''.
+    const inner = Array.from(captionEl.childNodes)
+      .map(nodeToMd)
+      .join('')
+      .trim();
+
+    if (!inner || isPlaceholderText(inner)) return '';
+    return `${inner}\n\n`;
   }
 
   function escapeRe(str) {
