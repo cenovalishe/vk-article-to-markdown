@@ -13,9 +13,9 @@ Chrome-расширение для экспорта статей ВКонтак�
 Открываете статью на ВКонтакте — нажимаете иконку расширения — получаете `.md` файл с чистым текстом статьи.
 
 **Поддерживаемые форматы URL:**
-- Опубликованные статьи — `vk.com/@group-slug`
-- Редактор статей — `vk.com/group?z=article_edit…`
-- Просмотр через оверлей — `vk.com/group?z=article…`
+- Опубликованные статьи — `vk.com/@group-slug`, `vk.ru/@group-slug`
+- Редактор статей — `vk.com/group?z=article_edit…`, `vk.ru/group?z=article_edit…`
+- Просмотр через оверлей — `vk.com/group?z=article…`, `vk.ru/group?z=article…`
 
 **Что конвертируется:**
 - Заголовки `# ## ###`
@@ -67,7 +67,7 @@ git clone https://github.com/cenovalishe/vk-article-to-markdown.git
 ## Использование
 
 1. Откройте любую статью ВКонтакте  
-   *(URL начинается с `vk.com/@…` или содержит `?z=article`)*
+   *(URL начинается с `vk.com/@…` / `vk.ru/@…` или содержит `?z=article`)*
 
 2. Нажмите иконку **VK → MD** в панели Chrome
 

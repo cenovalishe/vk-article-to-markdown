@@ -119,7 +119,7 @@ async function init() {
       setStatus(
         'info',
         'Это не страница статьи ВКонтакте',
-        'Откройте статью на vk.com/@slug или через редактор статей и нажмите иконку снова.',
+        'Откройте статью на vk.com/@slug / vk.ru/@slug или через редактор статей и нажмите иконку снова.',
         'is-warning'
       );
       return;
@@ -145,7 +145,10 @@ async function init() {
     const result = await sendToTab(tab.id, { action: 'extract' });
 
     if (!result || !result.success) {
-      const errMsg = result?.error || 'Неизвестная ошибка';
+      let errMsg = result?.error || 'Неизвестная ошибка';
+      if (errMsg.includes('Could not establish connection') || errMsg.includes('Receiving end does not exist')) {
+        errMsg = 'Не удалось подключиться к скрипту страницы. Попробуйте обновить страницу (F5) и нажать иконку снова.';
+      }
       setStatus('error', 'Не удалось извлечь статью', errMsg, 'is-error');
       showRetry(true);
       return;
@@ -169,23 +172,30 @@ async function init() {
 /**
  * Detects VK article pages by URL pattern.
  * Supported formats:
- *   vk.com/@group-article-slug          — published article
- *   vk.com/group?z=article{id}_{oid}    — article viewer overlay
- *   vk.com/group?z=article_edit{id}...  — article editor
+ *   vk.com/@group-article-slug / vk.ru/@group-article-slug — published article
+ *   vk.com/group?z=article{id}_{oid}                        — article viewer overlay
+ *   vk.com/group?z=article_edit{id}...                      — article editor
  */
 function isVKArticlePage(url) {
   if (!url) return false;
   try {
     const u = new URL(url);
-    const host = u.hostname.replace(/^www\./, '');
-    if (host !== 'vk.com') return false;
+    const isVkDomain = /(^|\.)vk\.(com|ru)$/i.test(u.hostname);
+    if (!isVkDomain) return false;
 
-    // Format 1: vk.com/@slug
-    if (u.pathname.startsWith('/@')) return true;
+    // Format 1: vk.com/@slug or vk.ru/@slug
+    if (u.pathname.includes('/@')) return true;
 
-    // Format 2: vk.com/anything?z=article... or ?z=article_edit...
+    // Format 2: ?z=article... or ?z=article_edit...
     const z = u.searchParams.get('z') || '';
     if (/^article/.test(z)) return true;
+
+    // Format 3: ?w=article...
+    const w = u.searchParams.get('w') || '';
+    if (/^article/.test(w)) return true;
+
+    // Format 4: /article/...
+    if (u.pathname.includes('/article')) return true;
 
     return false;
   } catch {
@@ -198,13 +208,16 @@ function sendToTab(tabId, message) {
     try {
       chrome.tabs.sendMessage(tabId, message, (response) => {
         if (chrome.runtime.lastError) {
-          resolve(null);
+          resolve({
+            success: false,
+            error: chrome.runtime.lastError.message || 'Ошибка соединения с вкладкой',
+          });
         } else {
-          resolve(response);
+          resolve(response || { success: false, error: 'Пустой ответ от страницы' });
         }
       });
-    } catch {
-      resolve(null);
+    } catch (err) {
+      resolve({ success: false, error: err.message || 'Ошибка отправки запроса' });
     }
   });
 }

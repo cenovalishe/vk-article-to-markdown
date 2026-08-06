@@ -6,6 +6,9 @@
 (function () {
   'use strict';
 
+  if (window._vkMdExporterReady) return;
+  window._vkMdExporterReady = true;
+
   // ─── Skip rules: UI chrome, placeholders, editor controls ────────────────
 
   /** CSS class fragments that mark non-content nodes */
@@ -172,7 +175,7 @@
         if (!text) return '';
         // Internal anchor → skip as link, keep text
         if (!href || href === '#') return text;
-        const url = href.startsWith('http') ? href : `https://vk.com${href}`;
+        const url = href.startsWith('http') ? href : `${location.origin}${href.startsWith('/') ? '' : '/'}${href}`;
         return `[${text}](${url})`;
       }
 
@@ -263,44 +266,49 @@
   // ─── Find the article body ─────────────────────────────────────────────────
 
   function findArticleContainer() {
-    // ── Editor mode ────────────────────────────────────────────────
-    // .article_editor_canvas is the actual rich-text editing surface
-    const canvas = document.querySelector('.article_editor_canvas');
-    if (canvas?.textContent.trim().length > 5) return canvas;
-
-    // ── Published article (@slug URL) ─────────────────────────────────
-    // Selector hierarchy on published pages:
-    //   .article_layer > .article_layer__content > .article_theme > .article_view
-    // .article_view is the precise content wrapper — no author header, no footer
-    const articleView = document.querySelector('.article_view');
-    if (articleView?.textContent.trim().length > 5) return articleView;
-
-    const articleTheme = document.querySelector('.article_theme');
-    if (articleTheme?.textContent.trim().length > 5) return articleTheme;
-
-    // ── Viewer overlay (?z=article...) ────────────────────────────────
-    const layerContent = document.querySelector('.article_ed_layer__content');
-    if (layerContent?.textContent.trim().length > 5) return layerContent;
-
-    // ── Fallbacks ─────────────────────────────────────────────────────────────
-    for (const sel of [
+    const SELECTORS = [
+      '.article_editor_canvas',
       '.article_view',
+      '.article_theme',
+      '.article_ed_layer__content',
+      '.article_layer__content',
+      '.ArticleView',
+      '.ArticleBody',
+      '.article_body',
+      '.article_content',
+      '.article__content',
+      '[data-testid="article_view"]',
+      '[data-testid="article_content"]',
       '[class*="article_layer"]',
+      '[class*="ArticleView"]',
       '[contenteditable="true"]',
-    ]) {
-      const el = document.querySelector(sel);
-      if (el?.textContent.trim().length > 5) return el;
+    ];
+
+    for (const sel of SELECTORS) {
+      const els = document.querySelectorAll(sel);
+      for (const el of els) {
+        if (el.getClientRects().length === 0 && el.offsetHeight === 0) continue;
+        if (el.textContent.trim().length > 5) {
+          return el;
+        }
+      }
     }
+
     return null;
   }
 
   // ─── Extract title (deduplicated) ─────────────────────────────────────────
 
   function extractTitle(container) {
-    const h1 = container?.querySelector('h1');
-    if (h1) return h1.textContent.trim();
+    const h1 = container?.querySelector('h1, .article_title, .ArticleTitle, [class*="article_title"]');
+    if (h1 && h1.textContent.trim()) return h1.textContent.trim();
+
     const pageH1 = document.querySelector('h1');
-    if (pageH1) return pageH1.textContent.trim();
+    if (pageH1 && pageH1.textContent.trim()) return pageH1.textContent.trim();
+
+    const titleMeta = document.querySelector('meta[property="og:title"]');
+    if (titleMeta && titleMeta.content) return titleMeta.content.trim();
+
     return document.title
       .replace(/ [|–—-] ВКонтакте$/, '')
       .replace(/ [|–—-] VK$/, '')
@@ -415,12 +423,15 @@
 
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === 'extract') {
-      sendResponse(extractArticle());
+      try {
+        sendResponse(extractArticle());
+      } catch (err) {
+        sendResponse({ success: false, error: `Ошибка при извлечении: ${err.message}` });
+      }
+      return false;
     } else if (message.action === 'ping') {
       sendResponse({ ready: true });
+      return false;
     }
-    return true;
   });
-
-  window._vkMdExporterReady = true;
 })();

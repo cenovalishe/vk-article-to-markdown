@@ -25,14 +25,18 @@
     "downloads"
   ],
   "host_permissions": [
-    "https://vk.com/*"
+    "https://vk.com/*",
+    "https://vk.ru/*",
+    "https://*.vk.com/*",
+    "https://*.vk.ru/*"
   ],
   "content_scripts": [
     {
       "matches": [
-        "https://vk.com/@*",
-        "https://vk.com/*?*z=article*",
-        "https://vk.com/*?*z=article_edit*"
+        "https://vk.com/*",
+        "https://vk.ru/*",
+        "https://*.vk.com/*",
+        "https://*.vk.ru/*"
       ],
       "js": ["content/content.js"],
       "run_at": "document_idle"
